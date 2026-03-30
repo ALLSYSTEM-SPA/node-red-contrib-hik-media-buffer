@@ -25,3 +25,35 @@ msg = {
     _msgid: "45fd74589048966d",
 };
 ```
+## HIK SNAPSHOT NODE
+
+<img src='https://github.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/blob/main/img/hik-snapshot-node.png'>
+
+The Hik Snapshot node connects to **_NVR_** and generates a live image for each camera when it receives **_payload = true_** as input.
+This node can also report if there are recordings of the day this node is triggered for each camera.
+
+<img src='https://github.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/blob/main/img/hik-snapshot-configuration.png'>
+
+To configure the node you need to enter the **_IP, user and password of the NVR_**, you can also choose the **_protocol_** and **_port_** to use.</br>
+You must also enter the number of the channels you want to get the snapshot of, if you enter "5", you will get the output of the first 5 channel on the NVR.</br>
+
+This below is an example of msg output:</br>
+
+```javascript
+msg = {
+    payload: array[5], // 5 channels
+    0: object, 
+    channel: 1, // Channel 1 of the NVR
+    photo: buffer[18080], // Snapshot buffer
+    snapOk: true, // True if it gets the snapshot, False if not
+    isRecording: true, // True if it the camera recorded something that day, False if not
+    1: object,
+    channel: 2,
+    photo: buffer[35056],
+    snapOk: true,
+    isRecording: true,
+    2: object,
+    3: object,
+    4: object,
+```
+
