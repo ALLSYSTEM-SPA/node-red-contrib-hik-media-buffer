@@ -1,0 +1,97 @@
+<script type="text/javascript">
+    RED.nodes.registerType('hik-media-buffer', {
+        category: 'Hikvision',
+        color: '#00b4d8',
+        defaults: {
+            name: { value: "" },
+            host: { value: "", required: true },
+            protocol: { value: "http" },
+            port: { value: "80", required: true },
+            user: { value: "admin", required: true },
+            pass: { value: "" },
+            camPass: { value: "" },
+            cameras: { value: [] }
+        },
+        inputs: 0,
+        outputs: 1,
+        icon: "font-awesome/fa-bell",
+        label: function() { return this.name || "Hik Multi Cam"; },
+        oneditprepare: function() {
+            $("#node-input-cameras-container").css('min-height','150px').editableList({
+                addItem: function(container, i, data) {
+                    var row = $('<div/>').appendTo(container);
+                    $('<input/>',{class:"node-input-camera-channel",type:"text",placeholder:"Canale (es. 1)",style:"width:30%; margin-right:5px;"}).appendTo(row).val(data.channel);
+                    $('<input/>',{class:"node-input-camera-ip",type:"text",placeholder:"IP Telecamera",style:"width:60%;"}).appendTo(row).val(data.ip);
+                },
+                removable: true,
+                sortable: true
+            });
+            if (this.cameras) {
+                this.cameras.forEach(function(cam) {
+                    $("#node-input-cameras-container").editableList('addItem', cam);
+                });
+            }
+        },
+        oneditsave: function() {
+            var cams = $("#node-input-cameras-container").editableList('items');
+            var node = this;
+            node.cameras = [];
+            cams.each(function(i) {
+                var cam = $(this);
+                var o = {
+                    channel: cam.find(".node-input-camera-channel").val(),
+                    ip: cam.find(".node-input-camera-ip").val()
+                };
+                if (o.channel && o.ip) node.cameras.push(o);
+            });
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="hik-media-buffer">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Nome</label>
+        <input type="text" id="node-input-name">
+    </div>
+    
+    <hr>
+    <h4>Configurazione NVR (Ascolto Allarmi)</h4>
+    <div class="form-row">
+        <label for="node-input-host"><i class="fa fa-globe"></i> IP NVR</label>
+        <input type="text" id="node-input-host" placeholder="Es: 192.168.1.100">
+    </div>
+    <div class="form-row">
+        <label for="node-input-user"><i class="fa fa-user"></i> Utente</label>
+        <input type="text" id="node-input-user">
+    </div>
+    <div class="form-row">
+        <label for="node-input-pass"><i class="fa fa-lock"></i> Password NVR</label>
+        <input type="password" id="node-input-pass">
+    </div>
+    <div class="form-row">
+        <label for="node-input-protocol"><i class="fa fa-shield"></i> Protocollo</label>
+        <select id="node-input-protocol" style="width: 70%">
+            <option value="http">HTTP</option>
+            <option value="https">HTTPS</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-port"><i class="fa fa-plug"></i> Porta</label>
+        <select id="node-input-port" style="width: 70%">
+            <option value="80">80</option>
+            <option value="443">443</option>
+            <option value="8000">8000</option>
+            <option value="8008">8008</option>
+        </select>
+    </div>
+
+    <hr>
+    <h4>Elenco Telecamere (Download)</h4>
+    <div class="form-row node-input-cameras-container-row">
+        <ol id="node-input-cameras-container"></ol>
+    </div>
+    <div class="form-row">
+        <label for="node-input-camPass"><i class="fa fa-key"></i> Password Telecamera</label>
+        <input type="password" id="node-input-camPass" placeholder="Password comune alle telecamere">
+    </div>
+</script>
