@@ -22,6 +22,7 @@ msg = {
     event: "LineDetection", // Type of event deteced 
     videoPath: "C:\Users\APerucca\AppData\Local\Temp\hik_v_2_1774874791241.mp4", // Path of the video
     imageBuffer: buffer[12360], // Buffer of the image
+    status: "online", // Status of the camera
     _msgid: "45fd74589048966d",
 };
 ```
