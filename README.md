@@ -1,6 +1,9 @@
 ## NODE-RED-CONTRIB-HIK-MEDIA-BUFFER
 
 ## HIK MEDIA BUFFER NODE
+
+<img src='C:\Users\APerucca\Pictures\Screenshots'>
+
 The Hik Media Buffer node connects to **_NVR_** and outputs the image and the video of the event in case of alarm.</br>
 This node only detects **_"FieldDetection_** and **_"LineDetection"_** alarms but can also receive notification of a **_failed connection_** of the cameras or NVR.</br>
 
