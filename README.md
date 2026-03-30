@@ -1,11 +1,11 @@
 ## NODE-RED-CONTRIB-HIK-MEDIA-BUFFER
 
 ## HIK MEDIA BUFFER NODE
-The Hik Media Buffer node connects to **_NVR_** and outputs the image and the video of the event in case of alarm.
-This node only detects **_"FieldDetection_** and **_"LineDetection"_** alarms but can also receive notification of a **_failed connection_** of the cameras or NVR.
+The Hik Media Buffer node connects to **_NVR_** and outputs the image and the video of the event in case of alarm.</br>
+This node only detects **_"FieldDetection_** and **_"LineDetection"_** alarms but can also receive notification of a **_failed connection_** of the cameras or NVR.</br>
 
-To configure the node you need to enter the **_IP, user and password of the NVR_**, you can also choose the **_protocol_** and **_port_** to use.
-You must also enter, by pressing the **_"add"_** button, the **_channel and the correspective IP of the camera_**, finally you must enter the **_password of the cameras_**.
+To configure the node you need to enter the **_IP, user and password of the NVR_**, you can also choose the **_protocol_** and **_port_** to use.</br>
+You must also enter, by pressing the **_"add"_** button, the **_channel and the correspective IP of the camera_**, finally you must enter the **_password of the cameras_**.</br>
 
 This below is an example of msg output:</br>
 
