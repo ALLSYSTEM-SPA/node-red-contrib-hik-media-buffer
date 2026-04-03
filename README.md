@@ -5,7 +5,7 @@
 <img src='https://github.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/blob/main/img/hik-media-buffer-node.png'>
 
 The Hik Media Buffer node connects to **_NVR_** and outputs the image and the video of the event in case of alarm.</br>
-This node only detects **_"FieldDetection_** and **_"LineDetection"_** alarms but can also receive notification of a **_failed connection_** of the cameras or NVR.</br>
+This node only detects **_"FieldDetection"_** and **_"LineDetection"_** alarms but can also receive notification of a **_failed connection_** of the cameras or NVR.</br>
 
 <img src='https://github.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/blob/main/img/hik-media-buffer-configuration.png'>
 
@@ -37,7 +37,7 @@ This node can also report if there are recordings of the day this node is trigge
 
 To configure the node you need to enter the **_IP, user and password of the NVR_**, you can also choose the **_protocol_** and **_port_** to use.</br>
 You must also enter the number of the channels you want to get the snapshot of.</br>
-If you enter "5", you will get the output of the first 5 channel on the NVR, so if you have 5 cameras on the NVR but one of them is not on the first five channels you won't get the snapshot of that camera.</br>
+If you enter "5", you will get the output of the first 5 channels on the NVR, so if you have 5 cameras on the NVR but one of them is not on the first five channels you won't get the snapshot of that camera.</br>
 
 This below is an example of msg output:</br>
 
