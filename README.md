@@ -17,10 +17,10 @@ This below is an example of msg output:</br>
 ```javascript
 msg = {
     payload: object,
-    ip: "192.168.62.9", // IP of the camera
+    ip: "192.168.1.100", // IP of the camera
     channel: "2", // Channel of the camera
     event: "LineDetection", // Type of event deteced 
-    videoPath: "C:\Users\APerucca\AppData\Local\Temp\hik_v_2_1774874791241.mp4", // Path of the video
+    videoPath: "", // Path of the video
     imageBuffer: buffer[12360], // Buffer of the image
     status: "online", // Status of the camera
     _msgid: "45fd74589048966d",
