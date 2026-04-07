@@ -96,30 +96,30 @@
     </div>
 </script>
 <script type="text/markdown" data-help-name="hik-media-buffer">
-    ## HIK MEDIA BUFFER NODE
+## HIK MEDIA BUFFER NODE
 
-    <img src='img/hik-media-buffer-node.png'>
+<img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-media-buffer-node.png'>
 
-    The Hik Media Buffer node connects to **_NVR_** and outputs the image and the video of the event in case of alarm.</br>
-    This node only detects **_"FieldDetection"_** and **_"LineDetection"_** alarms but can also receive notification of a **_failed connection_** of the cameras or NVR.</br>
+The Hik Media Buffer node connects to NVR and outputs the image and the video of the event in case of alarm.</br>
+This node only detects "FieldDetection" and "LineDetection" alarms but can also receive notification of a failed connection of the cameras or NVR.</br>
 
-    <img src='img/hik-media-buffer-configuration.png'>
+<img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-media-buffer-configuration.png'>
 
-    To configure the node you need to enter the **_IP, user and password of the NVR_**, you can also choose the **_protocol_** and **_port_** to use.</br>
-    You must also enter, by pressing the **_"add"_** button, the **_channel and the correspective IP of the camera_**, finally you must enter the **_password of the cameras_**.</br>
+To configure the node you need to enter the IP, user and password of the NVR, you can also choose the protocol and port to use.</br>
+You must also enter, by pressing the "add" button, the channel and the correspective IP of the camera, finally you must enter the password of the cameras.</br>
 
-    This below is an example of msg output:</br>
+This below is an example of msg output:</br>
 
-    ```javascript
-    msg = {
-        payload: object,
-        ip: "192.168.62.9", // IP of the camera
-        channel: "2", // Channel of the camera
-        event: "LineDetection", // Type of event deteced 
-        videoPath: "C:\Users\APerucca\AppData\Local\Temp\hik_v_2_1774874791241.mp4", // Path of the video
-        imageBuffer: buffer[12360], // Buffer of the image
-        status: "online", // Status of the camera
-        _msgid: "45fd74589048966d"
-    };
-    ```
+```javascript
+msg = {
+payload: object,
+ip: "192.168.1.100", // IP of the camera
+channel: "2", // Channel of the camera
+event: "LineDetection", // Type of event deteced 
+videoPath: "", // Path of the video
+imageBuffer: buffer[12360], // Buffer of the image
+status: "online", // Status of the camera
+_msgid: "45fd74589048966d"
+};
+```
 </script>   
