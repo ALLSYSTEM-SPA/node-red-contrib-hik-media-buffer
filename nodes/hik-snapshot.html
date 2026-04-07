@@ -68,39 +68,38 @@
     </div>
 
 </script>
-
 <script type="text/markdown" data-help-name="hik-snapshot">
-    ## HIK SNAPSHOT NODE
+## HIK SNAPSHOT NODE
 
-    <img src='img/hik-snapshot-node.png'>
+<img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-snapshot-node.png'>
 
-    The Hik Snapshot node connects to NVR and generates a live image for each camera when it receives payload = true as input.
-    This node can also report if there are recordings of the day this node is triggered for each camera.
+The Hik Snapshot node connects to NVR and generates a live image for each camera when it receives payload = true as input.
+This node can also report if there are recordings of the day this node is triggered for each camera.
 
-    <img src='img/hik-snapshot-configuration.png'>
+<img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-snapshot-configuration.png'>
 
-    To configure the node you need to enter the IP, user and password of the NVR, you can also choose the protocol and port to use.</br>
-    You must also enter the number of the channels you want to get the snapshot of.</br>
-    If you enter "5", you will get the output of the first 5 channels on the NVR, so if you have 5 cameras on the NVR but one of them is not on the first five channels you won't get the snapshot of that camera.</br>
+To configure the node you need to enter the IP, user and password of the NVR, you can also choose the protocol and port to use.</br>
+You must also enter the number of the channels you want to get the snapshot of.</br>
+If you enter "5", you will get the output of the first 5 channels on the NVR, so if you have 5 cameras on the NVR but one of them is not on the first five channels you won't get the snapshot of that camera.</br>
 
-    This below is an example of msg output:</br>
+This below is an example of msg output:</br>
 
-    ```javascript
-    msg = {
-        payload: array[5], // 5 channels
-        0: object, 
-        channel: 1, // Channel 1 of the NVR
-        photo: buffer[18080], // Snapshot buffer
-        snapOk: true, // True if it gets the snapshot, False if not
-        isRecording: true, // True if it the camera recorded something that day, False if not
-        1: object,
-        channel: 2,
-        photo: buffer[35056],
-        snapOk: true,
-        isRecording: true,
-        2: object,
-        3: object,
-        4: object
-    }
-    ```
+```javascript
+msg = {
+payload: array[5], // 5 channels
+0: object, 
+channel: 1, // Channel 1 of the NVR
+photo: buffer[18080], // Snapshot buffer
+snapOk: true, // True if it gets the snapshot, False if not
+isRecording: true, // True if it the camera recorded something that day, False if not
+1: object,
+channel: 2,
+photo: buffer[35056],
+snapOk: true,
+isRecording: true,
+2: object,
+3: object,
+4: object
+}
+```
 </script>
