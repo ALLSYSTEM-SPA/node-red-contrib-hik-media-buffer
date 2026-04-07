@@ -48,7 +48,7 @@ msg = {
     channel: 1, // Channel 1 of the NVR
     photo: buffer[18080], // Snapshot buffer
     snapOk: true, // True if it gets the snapshot, False if not
-    isRecording: true, // True if it the camera recorded something that day, False if not
+    isRecording: true, // True if the camera recorded something that day, False if not
     1: object,
     channel: 2,
     photo: buffer[35056],
