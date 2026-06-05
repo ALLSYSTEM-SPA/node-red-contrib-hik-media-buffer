@@ -16,15 +16,20 @@ This below is an example of msg output:</br>
 
 ```javascript
 msg = {
-    payload: object,
-    ip: "192.168.1.100", // IP of the camera
-    channel: "2", // Channel of the camera
-    event: "LineDetection", // Type of event deteced 
-    videoPath: "", // Path of the video
-    imageBuffer: buffer[12360], // Buffer of the image
-    status: "online", // Status of the camera
-    _msgid: "45fd74589048966d",
+    payload: object
+    tipo_messaggio: "evento" // Type of alarm deteced (event or status)
+    nome_cliente: "test" // Client name (name of the node)
+    nome_telecamera: "Ufficio" // Camera name on hiklvision
+    ip_telecamera: "192.168.62.9" // IP of the camera
+    tipo_evento: "LineDetection" // Type of event deteced
+    timestamp_epoch: 1780645403 // Timestamp of the event 
+    stato_telecamera: "ONLINE" // Status of the camera
+    channel: "2" // Channel of the camera
+    foto_base64: "/9j/2wCEAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSop..." // Buffer of the image base64
+    video_base64: "AAAAHGZ0eXBpc29tAAACAGlzb21pc28ybXA0MQAABtdtb292AAAAbG12aGQAAAAAAAAAAAAAAAAAAAPo..." // Buffer of the image base64
+    _msgid: "942a8c0c56860f42"
 };
+
 ```
 ## HIK SNAPSHOT NODE
 
