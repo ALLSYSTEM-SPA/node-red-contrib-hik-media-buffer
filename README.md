@@ -11,6 +11,7 @@ This node only detects **_"FieldDetection"_** and **_"LineDetection"_** alarms b
 
 To configure the node you need to enter the **_IP, user and password of the NVR_**, you can also choose the **_protocol_** and **_port_** to use.</br>
 You must also enter, by pressing the **_"add"_** button, the **_channel and the correspective IP of the camera_**, finally you must enter the **_password of the cameras_**.</br>
+The node name is the name of the customer.</br>
 
 This below is an example of msg output:</br>
 
