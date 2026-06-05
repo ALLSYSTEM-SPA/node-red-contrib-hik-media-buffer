@@ -11,40 +11,66 @@ module.exports = function(RED) {
         RED.nodes.createNode(this, config);
         const node = this;
         
-        // --- ASSEGNAZIONE PROPRIETÀ AL NODO ---
+        node.name = config.name || "TEST";
         node.host = config.host;
         node.port = config.port || "80";
         node.protocol = config.protocol || "http";
         node.user = config.user;
         node.pass = config.pass;
-        node.camPass = config.camPass || config.pass; // Usa pass dell'NVR se quella cam specifica non c'è
+        node.camPass = config.camPass || config.pass;
         node.cameras = config.cameras || [];
-        // --------------------------------------
 
         let streamRequest = null;
         let isClosing = false;
-        let lastTriggerTime = 0;
-        
-        // Stati di connessione
+        let lastTriggerTime = {};
         let nvrOnline = true;
-        let statoCamera = {}; // Memorizza lo stato { "IP": true/false }
+        let statoCamera = {}; 
 
         const httpsAgent = new https.Agent({ rejectUnauthorized: false });
-        const tempDir = os.tmpdir();
         const EventList = ["FieldDetection", "LineDetection"];
+
+        // CARTELLA TEMPORANEA 
+        const baseStorage = path.join(os.tmpdir(), "hik_temp_media");
+        if (!fs.existsSync(baseStorage)) fs.mkdirSync(baseStorage, { recursive: true });
 
         node.status({fill:"grey", shape:"ring", text:"Inizializzazione..."});
 
         function toHikDate(d) { return d.toISOString().split('.')[0] + "Z"; }
-   
-        // --- CONTROLLO SE LE TELECAMERE SONO ONLINE ---
+
+        // --- PRENDE IL NOME DELLA TELECAMERA ---
+        async function getCameraName(cam) {
+            const camAuth = new AxiosDigestAuth({ 
+                username: node.user, 
+                password: node.camPass 
+            });
+
+            try {
+                const res = await camAuth.request({
+                    method: 'GET',
+                    url: `${node.protocol}://${cam.ip}:${node.port}/ISAPI/System/Video/inputs/channels/${cam.channel}/overlays/channelNameOverlay`,
+                    timeout: 5000,
+                    httpsAgent: node.protocol === "https" ? httpsAgent : undefined
+                });
+
+                const data = res.data.toString();
+                const match = data.match(/<name>([^<]+)<\/name>/i);
+                
+                if (match && match[1]) {
+                    return match[1].trim();
+                } else {
+                    return `Canale_${cam.channel}`;
+                }
+
+            } catch (e) {
+                return `Camera_${cam.channel}`; 
+            }
+        }
+
+        // --- CONTROLLO STATUS CAMERE ---
         async function checkCameras() {
             if (isClosing) return;
             for (let cam of node.cameras) {
-                const camAuth = new AxiosDigestAuth({ 
-                    username: node.user, 
-                    password: node.camPass 
-                });
+                const camAuth = new AxiosDigestAuth({ username: node.user, password: node.camPass });
                 try {
                     await camAuth.request({ 
                         method: 'GET', 
@@ -52,16 +78,16 @@ module.exports = function(RED) {
                         timeout: 5000,
                         httpsAgent: node.protocol === "https" ? httpsAgent : undefined
                     });
-
                     if (statoCamera[cam.ip] === false) {
-                        node.send({ payload: { status: "online", ip: cam.ip, channel: cam.channel, msg: "Camera ripristinata" } });
+                        const nomeOnline = await getCameraName(cam);
+                        node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "online", nome_cliente: node.name, nome_telecamera: nomeOnline, ip_telecamera: cam.ip, channel: cam.channel, msg: "Camera ripristinata" } });
                         statoCamera[cam.ip] = true;
                     } else if (statoCamera[cam.ip] === undefined) {
                         statoCamera[cam.ip] = true;
                     }
                 } catch (e) {
                     if (statoCamera[cam.ip] !== false) {
-                        node.send({ payload: { status: "offline", ip: cam.ip, channel: cam.channel, msg: "Camera non raggiungibile" } });
+                        node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "offline", nome_cliente: node.name, nome_telecamera: `Camera_${cam.channel}`, ip_telecamera: cam.ip, channel: cam.channel, msg: "Camera non raggiungibile" } });
                         statoCamera[cam.ip] = false;
                     }
                 }
@@ -82,20 +108,23 @@ module.exports = function(RED) {
 
         const heartbeatInterval = setInterval(checkCameras, 30000);
 
-        // --- FUNZIONE DOWNLOAD ---
+        // --- DOWNLOAD, SALVATAGGIO, CONVERSIONE E RIMOZIONE DOPO 2 MINUTI ---
         async function downloadMedia(evento, channelID) {
             const camera = node.cameras.find(c => c.channel == channelID);
             if (!camera) return;
 
+            const nomeCamera = await getCameraName(camera);
+            
             const nowTime = Date.now();
-            if (nowTime - lastTriggerTime < 10000) return; 
-            lastTriggerTime = nowTime;
+            if(!lastTriggerTime[camera.ip]){
+                lastTriggerTime[camera.ip] = 0;
+            }
+            if (nowTime - lastTriggerTime[camera.ip] < 5000) return; 
+            lastTriggerTime[camera.ip] = nowTime;
 
-            const camAuth = new AxiosDigestAuth({ 
-                username: node.user, 
-                password: node.camPass 
-            });
+            const camAuth = new AxiosDigestAuth({ username: node.user, password: node.camPass });
             const referenceTime = new Date();
+            const timestamp = Math.floor(referenceTime.getTime() / 1000);
             const startTime = toHikDate(new Date(referenceTime.getTime() - (10 * 1000)));
             const endTime = toHikDate(new Date(referenceTime.getTime() + (10 * 1000)));
 
@@ -103,26 +132,31 @@ module.exports = function(RED) {
             await new Promise(resolve => setTimeout(resolve, 6000));
             
             const baseUrl = `${node.protocol}://${camera.ip}:${node.port}/ISAPI/ContentMgmt`;
-            let output = { ip: camera.ip, channel: channelID, event: evento, videoPath: null, imageBuffer: null };
+            
+            // struttura del payload per Python
+            let output = { 
+                tipo_messaggio: "evento",
+                nome_cliente: node.name, 
+                nome_telecamera: nomeCamera, 
+                ip_telecamera: camera.ip, 
+                tipo_evento: evento, 
+                timestamp_epoch: timestamp,
+                stato_telecamera: "ONLINE",
+                channel: channelID.toString(),
+                foto_base64: null, 
+                video_base64: null 
+            };
+
+            
+            let fileDaCancellare = [];
 
             try {
-                const tracks = [{ name: "termicoV", id: "201" }, { name: "termico", id: "203" }];
+                const tracks = [{ id: "201" }, { id: "203" }];
                 for (let t of tracks) {
-                    const searchXml = `<?xml version="1.0" encoding="utf-8"?>
-<CMSearchDescription>
-    <searchID>LAST_EVENT</searchID>
-    <trackIDList><trackID>${t.id}</trackID></trackIDList>
-    <timeSpanList><timeSpan><startTime>${startTime}</startTime><endTime>${endTime}</endTime></timeSpan></timeSpanList>
-    <maxResults>100</maxResults>
-    <searchResultPostion>0</searchResultPostion>
-    <metadataList><metadataDescriptor>//recordType.meta.std-cgi.com/${evento}</metadataDescriptor></metadataList>
-</CMSearchDescription>`;
+                    const searchXml = `<?xml version="1.0" encoding="utf-8"?><CMSearchDescription><searchID>LAST_EVENT</searchID><trackIDList><trackID>${t.id}</trackID></trackIDList><timeSpanList><timeSpan><startTime>${startTime}</startTime><endTime>${endTime}</endTime></timeSpan></timeSpanList><maxResults>100</maxResults><metadataList><metadataDescriptor>//recordType.meta.std-cgi.com/${evento}</metadataDescriptor></metadataList></CMSearchDescription>`;
 
                     const resSearch = await camAuth.request({ 
-                        method: 'POST',
-                        url: `${baseUrl}/search`, 
-                        data: searchXml, 
-                        headers: { "Content-Type": "application/xml" } 
+                        method: 'POST', url: `${baseUrl}/search`, data: searchXml, headers: { "Content-Type": "application/xml" } 
                     });
                     
                     let xml = resSearch.data.replace(/<(\/?)\w+:/g, "<$1");
@@ -131,59 +165,81 @@ module.exports = function(RED) {
                     if (uriMatch) {
                         const rawUri = uriMatch[1].replace(/&amp;/g, '&');
                         const resDown = await camAuth.request({ 
-                            method: 'GET', url: `${baseUrl}/download`, 
+                            method: 'GET',
+                            url: `${baseUrl}/download`, 
                             data: `<?xml version="1.0" encoding="UTF-8"?><downloadRequest><playbackURI>${rawUri.replace(/&/g, '&amp;')}</playbackURI></downloadRequest>`, 
                             responseType: 'arraybuffer'
                         });
 
                         let buffer = Buffer.from(resDown.data);
                         if (t.id === "203") {
-                            output.imageBuffer = buffer;
+                            // SALVA FOTO IN LOCALE
+                            const fullImgPath = path.join(baseStorage, `img_${timestamp}.jpg`);
+                            fs.writeFileSync(fullImgPath, buffer);
+                            
+                            // La convertiamo subito in testo per il payload
+                            output.foto_base64 = fs.readFileSync(fullImgPath, { encoding: 'base64' });
+                            
+                            // Registriamo il file per la distruzione futura
+                            fileDaCancellare.push(fullImgPath);
                         } else {
+                            // SALVA VIDEO IN LOCALE-
                             if (buffer.slice(0, 4).toString() === 'IMKH') buffer = buffer.slice(40);
-                            const rawPath = path.join(tempDir, `raw_${Date.now()}.mp4`);
-                            const fixedPath = path.join(tempDir, `hik_v_${channelID}_${Date.now()}.mp4`);
+                            const rawPath = path.join(baseStorage, `raw_${timestamp}.mp4`);
+                            const fixedPath = path.join(baseStorage, `hik_v_${channelID}_${timestamp}.mp4`);
                             fs.writeFileSync(rawPath, buffer);
+                            
+                            // Eseguiamo ffmpeg localmente
                             await new Promise((resolve) => {
                                 exec(`ffmpeg -y -i "${rawPath}" -c copy -movflags +faststart "${fixedPath}"`, (err) => {
-                                    if (!err) {
-                                        output.videoPath = fixedPath;
-                                        try { fs.unlinkSync(rawPath); } catch(e) {}
-                                    } else { output.videoPath = rawPath; }
+                                    if (!err && fs.existsSync(fixedPath)) {
+                                        output.video_base64 = fs.readFileSync(fixedPath, { encoding: 'base64' });
+                                        fileDaCancellare.push(fixedPath);
+                                    } else {
+                                        output.video_base64 = fs.readFileSync(rawPath, { encoding: 'base64' });
+                                    }
+                                    fileDaCancellare.push(rawPath);
                                     resolve();
                                 });
                             });
-                            setTimeout(() => { if (output.videoPath && fs.existsSync(output.videoPath)) fs.unlinkSync(output.videoPath); }, 180000);
                         }
                     }
                 }
-                if (output.imageBuffer || output.videoPath) node.send({ payload: output });
+
+                // Spediamo il pacchetto completo verso l'HTTP Request tramite Node-RED
+                if (output.foto_base64 || output.video_base64) {
+                    node.send({ payload: output });
+                    
+                    // TIMER A 2 MINUTI PER LA PULIZIA DEL DISCO 
+                    setTimeout(() => {
+                        for (let file of fileDaCancellare) {
+                            try {
+                                if (fs.existsSync(file)) {
+                                    fs.unlinkSync(file);
+                                }
+                            } catch (err) {
+                                node.error(`Errore durante la pulizia del file temporaneo ${file}: ${err.message}`);
+                            }
+                        }
+                    }, 120000);
+                }
+
             } catch (e) {
                 node.error(`Errore Download Cam ${channelID}: ${e.message}`);
             }
             updateNodeStatus();
         }
 
-        // --- GESTIONE NVR ALERT STREAM ---
+        // --- ALERT STREAM ---
         function startAlertStream() {
             if (isClosing) return;
-            const nvrAuth = new AxiosDigestAuth({ 
-                username: node.user, 
-                password: node.pass 
-            });
+            const nvrAuth = new AxiosDigestAuth({ username: node.user, password: node.pass });
             const url = `${node.protocol}://${node.host}:${node.port}/ISAPI/Event/notification/alertStream`;
-            
-            nvrAuth.request({ 
-                method: 'GET', url: url, responseType: 'stream', 
-                httpsAgent: node.protocol === "https" ? httpsAgent : undefined
-            }).then(response => {
+            nvrAuth.request({ method: 'GET', url: url, responseType: 'stream', httpsAgent: node.protocol === "https" ? httpsAgent : undefined })
+            .then(response => {
                 streamRequest = response;
-                if (!nvrOnline) {
-                    node.send({ payload: { status: "online", ip: node.host, msg: "NVR Online" } });
-                    nvrOnline = true;
-                }
+                if (!nvrOnline) { node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "online", ip: node.host, msg: "NVR Online", nome_cliente: node.name } }); nvrOnline = true; }
                 updateNodeStatus();
-
                 response.data.on('data', (chunk) => {
                     const data = chunk.toString().toLowerCase();
                     if (data.includes("active")) {
@@ -195,24 +251,19 @@ module.exports = function(RED) {
                         }
                     }
                 });
-
                 response.data.on('error', () => handleNvrError());
                 response.data.on('end', () => !isClosing && setTimeout(startAlertStream, 5000));
             }).catch(() => handleNvrError());
         }
 
         function handleNvrError() {
-            if (nvrOnline) {
-                node.send({ payload: { status: "offline", ip: node.host, msg: "NVR Offline" } });
-                nvrOnline = false;
-            }
+            if (nvrOnline) { node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "offline", ip: node.host, msg: "NVR Offline", nome_cliente: node.name } }); nvrOnline = false; }
             updateNodeStatus();
             if (!isClosing) setTimeout(startAlertStream, 10000);
         }
 
         startAlertStream();
         setTimeout(checkCameras, 2000); 
-
         node.on('close', (done) => { 
             isClosing = true; 
             clearInterval(heartbeatInterval);
