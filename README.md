@@ -18,7 +18,7 @@ This below is an example of msg output:</br>
 msg = {
     payload: object
     tipo_messaggio: "evento" // Type of alarm deteced (event or status)
-    nome_cliente: "test" // Client name (name of the node)
+    nome_cliente: "test" // Customer name (name of the node)
     nome_telecamera: "Ufficio" // Camera name on hiklvision
     ip_telecamera: "192.168.62.9" // IP of the camera
     tipo_evento: "LineDetection" // Type of event deteced
