@@ -66,7 +66,8 @@ This below is an example of msg output:</br>
 ```javascript
 msg = {
     payload: array[5], // 5 channels
-    0: object, 
+    0: object,
+    name: "test" // Node name 
     channel: 1, // Channel 1 of the NVR
     photo: buffer[18080], // Snapshot buffer
     snapOk: true, // True if it gets the snapshot, False if not
