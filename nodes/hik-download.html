@@ -1,0 +1,103 @@
+<script type="text/javascript">
+    RED.nodes.registerType('hik-download', {
+        category: 'Hikvision',
+        color: '#00b4d8', 
+        defaults: {
+            name: { value: "" },
+            host: { value: "" },
+            channels: { value: "" }, 
+            protocol: { value: "http" },
+            port: { value: "80" },
+            user: { value: "admin" },
+            pass: { value: "" },
+            startTime: { value: "" },
+            endTime: { value: "" }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "font-awesome/fa-video-camera",
+        label: function() { return this.name || "Hik Download Video"; }
+    });
+</script>
+
+<script type="text/html" data-template-name="hik-download">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Nome</label>
+        <input type="text" id="node-input-name">
+    </div>
+    
+    <hr>
+    <h4>Configurazione NVR</h4>
+    <div class="form-row">
+        <label for="node-input-host"><i class="fa fa-globe"></i> IP NVR</label>
+        <input type="text" id="node-input-host" placeholder="Es: 192.168.1.100">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-channels"><i class="fa fa-list-ol"></i> Canali</label>
+        <input type="text" id="node-input-channels" placeholder="Es: 1 o 1,3,5 o 1-4">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-user"><i class="fa fa-user"></i> Utente</label>
+        <input type="text" id="node-input-user">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-pass"><i class="fa fa-lock"></i> Password NVR</label>
+        <input type="password" id="node-input-pass">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-startTime"><i class="fa fa-calendar"></i> Data Inizio</label>
+        <input type="datetime-local" id="node-input-startTime" step="1" style="width: 70%">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-endTime"><i class="fa fa-calendar"></i> Data Fine</label>
+        <input type="datetime-local" id="node-input-endTime" step="1" style="width: 70%">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-protocol"><i class="fa fa-shield"></i> Protocollo</label>
+        <select id="node-input-protocol" style="width: 70%">
+            <option value="http">HTTP</option>
+            <option value="https">HTTPS</option>
+        </select>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-port"><i class="fa fa-plug"></i> Porta</label>
+        <select id="node-input-port" style="width: 70%">
+            <option value="80">80</option>
+            <option value="443">443</option>
+            <option value="85">85</option>
+            <option value="8000">8000</option>
+            <option value="8800">8800</option>
+        </select>
+    </div>
+</script>
+<script type="text/markdown" data-help-name="hik-media-buffer">
+## HIK DOWNLOAD NODE
+
+<img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-download-node.png'>
+
+The Hik Download node connects to NVR and outputs the playback video when it receives "payload = true" as input.</br>
+
+<img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-download-configuration.png'>
+
+To configure the node you need to enter the IP, user and password of the NVR, you can also choose the protocol and port to use.</br>
+You must also enter the start time and the end time and the number of the channels you want to get the playback of.</br>
+If you enter "1", you will get the playback of the first channel on the NVR, if you enter "1,3", you will get the playback of channel 1 and 3 on the NVR, if you enter "1-3", you will get the playback from channel 1 to channel 3 on the NVR</br>
+
+This below is an example of msg output:</br>
+
+```javascript
+msg = {
+payload: buffer[6058100], //Buffer of the video
+localFilePath: "C:/download/2026-07-15/NVR_Cam2_085510.mp4", // Path of the video
+channel: 2, // Channel of the camera
+filename: "NVR_Cam2_085510.mp4" // Name of the file
+};
+```
+</script>  
