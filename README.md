@@ -53,7 +53,7 @@ msg = {
 <img src='https://github.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/blob/main/img/hik-snapshot-node.png'>
 
 The Hik Snapshot node connects to **_NVR_** and generates a live image for each camera when it receives **_payload = true_** as input.
-This node can also report if there are recordings of the day this node is triggered for each camera.
+This node can also report, for each camera, if there are recordings of the day this node is triggered.
 
 <img src='https://github.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/blob/main/img/hik-snapshot-configuration.png'>
 
