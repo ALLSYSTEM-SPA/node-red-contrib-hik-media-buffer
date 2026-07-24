@@ -8,6 +8,8 @@ module.exports = function(RED) {
         RED.nodes.createNode(this, config);
         const node = this;
 
+        // Parametri di default salvati dalla configurazione grafica del nodo
+        node.nodeName = config.name || `NVR_${config.host}`;
         node.protocol = config.protocol || "http";
         node.host = config.host;
         node.port = config.port || "80";
@@ -18,13 +20,25 @@ module.exports = function(RED) {
         const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
         node.on('input', async function(msg) {
-            if (msg.payload !== true) return;
+            // 🌟 1. LOGICA DI ACCETTAZIONE FLESSIBILE
+            // Il nodo parte se il payload è 'true' OPPURE se stiamo passando una configurazione dinamica
+            if (msg.payload !== true && typeof msg.payload !== 'object') return;
 
             node.status({fill: "blue", shape: "dot", text: "Verifica canali..."});
 
+            // 🌟 2. VALUTAZIONE PARAMETRI DINAMICI VS PARAMETRI STATICI
+            // Se le proprietà sono presenti nel msg, usiamo quelle, altrimenti facciamo il fallback su quelle del nodo
+            const NVR_HOST = msg.nvr_host || node.host;
+            const NVR_PORT = msg.nvr_port || node.port;
+            const NVR_USER = msg.nvr_user || node.user;
+            const NVR_PASS = msg.nvr_pass || node.pass;
+            const NVR_NAME = msg.nvr_name || node.nodeName;
+            const MAX_CHANNELS = parseInt(msg.nvr_channels) || node.maxChannels;
+            const PROTOCOL = msg.nvr_protocol || node.protocol;
+
             const digest = new DigestAuthClass({
-                username: node.user, 
-                password: node.pass
+                username: NVR_USER, 
+                password: NVR_PASS
             });
             
             const data = new Date();
@@ -34,14 +48,16 @@ module.exports = function(RED) {
 
             let snapshotResults = []; 
 
-            for (let i = 1; i <= node.maxChannels; i++) {
+            // Il ciclo ora scala dinamicamente in base al numero di canali calcolato
+            for (let i = 1; i <= MAX_CHANNELS; i++) {
                 const chanId = i + "01";
-                const snapUrl = `${node.protocol}://${node.host}:${node.port}/ISAPI/Streaming/channels/${chanId}/picture`;
-                const recordUrl = `${node.protocol}://${node.host}:${node.port}/ISAPI/ContentMgmt/record/tracks/${chanId}/dailyDistribution`;
+                const snapUrl = `${PROTOCOL}://${NVR_HOST}:${NVR_PORT}/ISAPI/Streaming/channels/${chanId}/picture`;
+                const recordUrl = `${PROTOCOL}://${NVR_HOST}:${NVR_PORT}/ISAPI/ContentMgmt/record/tracks/${chanId}/dailyDistribution`;
                 
                 const recordXml = `<?xml version="1.0" encoding="utf-8"?><trackDailyParam><year>${year}</year><monthOfYear>${month}</monthOfYear><dayOfMonth>${day}</dayOfMonth></trackDailyParam>`;
 
                 let resCanale = {
+                    name: NVR_NAME, // Dinamico o statico a seconda della modalità
                     channel: i,
                     photo: null,
                     snapOk: false,
@@ -54,7 +70,7 @@ module.exports = function(RED) {
                         method: 'GET',
                         url: snapUrl,
                         responseType: 'arraybuffer',
-                        httpsAgent: node.protocol === 'https' ? httpsAgent : undefined,
+                        httpsAgent: PROTOCOL === 'https' ? httpsAgent : undefined,
                         timeout: 5000
                     });
                     resCanale.photo = responseSnap.data;
@@ -70,7 +86,7 @@ module.exports = function(RED) {
                         url: recordUrl,
                         data: recordXml,
                         headers: { 'Content-Type': 'application/xml' },
-                        httpsAgent: node.protocol === 'https' ? httpsAgent : undefined,
+                        httpsAgent: PROTOCOL === 'https' ? httpsAgent : undefined,
                         timeout: 5000
                     });
                     const xmlOutput = responseRec.data.toString();
@@ -84,17 +100,18 @@ module.exports = function(RED) {
                 await new Promise(resolve => setTimeout(resolve, 200));
             }
 
+            // Restituiamo i risultati sovrascrivendo il payload ma lasciando inalterato il resto del msg (es. msg.chatId)
             msg.payload = snapshotResults;
             node.send(msg);
 
-            // Conteggi per lo stato del nodo
+            // Conteggi per lo stato visivo sul quadratino del nodo
             const snapCount = snapshotResults.filter(v => v.snapOk).length;
             const recCount = snapshotResults.filter(v => v.isRecording).length;
             
             node.status({
-                fill: (snapCount === node.maxChannels && recCount === node.maxChannels) ? "green" : "yellow", 
+                fill: (snapCount === MAX_CHANNELS && recCount === MAX_CHANNELS) ? "green" : "yellow", 
                 shape: "dot", 
-                text: `Snap: ${snapCount}/${node.maxChannels} | Rec: ${recCount}/${node.maxChannels}`
+                text: `Snap: ${snapCount}/${MAX_CHANNELS} | Rec: ${recCount}/${MAX_CHANNELS}`
             });
         });
     }
