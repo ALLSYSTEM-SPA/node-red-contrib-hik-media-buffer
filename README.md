@@ -62,6 +62,30 @@ msg = {
     isRecording: true,
     2: object,
     3: object,
-    4: object,
+    4: object
+};
+```
+
+## HIK DOWNLOAD NODE
+
+<img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-download-node.png'>
+
+The Hik Media Buffer node connects to NVR and outputs the playback video when it receives "payload = true" as input.</br>
+
+<img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-download-configuration.png'>
+
+To configure the node you need to enter the IP, user and password of the NVR, you can also choose the protocol and port to use.</br>
+You must also enter the start time and the end time and the number of the channels you want to get the playback of.</br>
+If you enter "1", you will get the playback of the first channel on the NVR, if you enter "1,3", you will get the playback of channel 1 and 3 on the NVR, if you enter "1-3", you will get the playback from channel 1 to channel 3 on the NVR</br>
+
+This below is an example of msg output:</br>
+
+```javascript
+msg = {
+    payload: buffer[6058100], //Buffer of the video
+    localFilePath: "C:/download/2026-07-15/NVR_Cam2_085510.mp4", // Path of the video
+    channel: 2, // Channel of the camera
+    filename: "NVR_Cam2_085510.mp4" // Name of the file
+};
 ```
 
