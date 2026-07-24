@@ -10,27 +10,43 @@ This node only detects **_"FieldDetection"_** and **_"LineDetection"_** alarms b
 <img src='https://github.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/blob/main/img/hik-media-buffer-configuration.png'>
 
 To configure the node you need to enter the **_IP, user and password of the NVR_**, you can also choose the **_protocol_** and **_port_** to use.</br>
-You must also enter, by pressing the **_"add"_** button, the **_channel and the correspective IP of the camera_**, finally you must enter the **_password of the cameras_**.</br>
-The node name is the name of the customer.</br>
 
 This below is an example of msg output:</br>
 
+In case of failed connection:</br>
+
 ```javascript
 msg = {
-    payload: object
-    tipo_messaggio: "evento" // Type of alarm deteced (event or status)
-    nome_cliente: "test" // Customer name (name of the node)
-    nome_telecamera: "Ufficio" // Camera name on hiklvision
-    ip_telecamera: "192.168.62.9" // IP of the camera
-    tipo_evento: "LineDetection" // Type of event deteced
-    timestamp_epoch: 1780645403 // Timestamp of the event 
-    stato_telecamera: "ONLINE" // Status of the camera
-    channel: "2" // Channel of the camera
-    foto_base64: "/9j/2wCEAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSop..." // Buffer of the image base64
-    video_base64: "AAAAHGZ0eXBpc29tAAACAGlzb21pc28ybXA0MQAABtdtb292AAAAbG12aGQAAAAAAAAAAAAAAAAAAAPo..." // Buffer of the image base64
-    _msgid: "942a8c0c56860f42"
+    payload: object,
+    tipo_messaggio: "status" //message type
+    stato_telecamera: "online" // Status of the camera
+    nome_cliente: "test"  // Node name
+    nome_telecamera: "Camera 01" // Camera name (OSD)
+    ip_telecamera: "192.168.62.131" // IP of the camera
+    channel: "1" // Channel of the camera
+    msg: "Camera ripristinata" 
+    _msgid: "45fd74589048966d"
 };
 
+```
+
+In case of alarm:</br>
+
+```javascript
+msg = {
+    payload: object,
+    tipo_messaggio: "evento" //message type
+    nome_cliente: "test"  // Node name
+    nome_telecamera: "Camera 01" // Camera name (OSD)
+    ip_telecamera: "192.168.62.131" // IP of the camera
+    tipo_evento: "LineDetection" // Event type
+    timestamp_epoch: 1784877525
+    stato_telecamera: "ONLINE" // Status of the camera
+    channel: "1" // Channel of the camera
+    foto_base64: "/9j/2wCEAAYEBQYFBAYGBQY.." // Img in base64
+    video_base64: "AAAAHGZ0eXBpc29tAAACAG.." // Video in base64
+    _msgid: "45fd74589048966d"
+};
 ```
 ## HIK SNAPSHOT NODE
 
@@ -70,7 +86,7 @@ msg = {
 
 <img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-download-node.png'>
 
-The Hik Media Buffer node connects to NVR and outputs the playback video when it receives "payload = true" as input.</br>
+The Hik Download node connects to NVR and outputs the playback video when it receives "payload = true" as input.</br>
 
 <img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-download-configuration.png'>
 
