@@ -17,8 +17,6 @@ module.exports = function(RED) {
         node.protocol = config.protocol || "http";
         node.user = config.user;
         node.pass = config.pass;
-        node.camPass = config.camPass || config.pass;
-        node.cameras = config.cameras || [];
 
         let streamRequest = null;
         let isClosing = false;
@@ -29,68 +27,81 @@ module.exports = function(RED) {
         const httpsAgent = new https.Agent({ rejectUnauthorized: false });
         const EventList = ["FieldDetection", "LineDetection"];
 
-        // CARTELLA TEMPORANEA 
         const baseStorage = path.join(os.tmpdir(), "hik_temp_media");
         if (!fs.existsSync(baseStorage)) fs.mkdirSync(baseStorage, { recursive: true });
 
         node.status({fill:"grey", shape:"ring", text:"Inizializzazione..."});
 
-        function toHikDate(d) { return d.toISOString().split('.')[0] + "Z"; }
+        // --- FORMATTAZIONE DATA LOCALE ---
+        function toHikSearchDate(d) {
+            const pad = (num) => String(num).padStart(2, '0');
+            
+            const year = d.getFullYear();
+            const month = pad(d.getMonth() + 1);
+            const day = pad(d.getDate());
+            const hours = pad(d.getHours());
+            const minutes = pad(d.getMinutes());
+            const seconds = pad(d.getSeconds());
+            
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}Z`;
+        }
 
-        // --- PRENDE IL NOME DELLA TELECAMERA ---
-        async function getCameraName(cam) {
-            const camAuth = new AxiosDigestAuth({ 
-                username: node.user, 
-                password: node.camPass 
-            });
-
+        // --- 1. PRENDE IL NOME REALE DELLA TELECAMERA ---
+        async function getCameraName(channelID) {
+            const nvrAuth = new AxiosDigestAuth({ username: node.user, password: node.pass });
             try {
-                const res = await camAuth.request({
+                const res = await nvrAuth.request({
                     method: 'GET',
-                    url: `${node.protocol}://${cam.ip}:${node.port}/ISAPI/System/Video/inputs/channels/${cam.channel}/overlays/channelNameOverlay`,
+                    url: `${node.protocol}://${node.host}:${node.port}/ISAPI/ContentMgmt/InputProxy/channels/${channelID}`,
                     timeout: 5000,
                     httpsAgent: node.protocol === "https" ? httpsAgent : undefined
                 });
-
                 const data = res.data.toString();
                 const match = data.match(/<name>([^<]+)<\/name>/i);
-                
-                if (match && match[1]) {
-                    return match[1].trim();
-                } else {
-                    return `Canale_${cam.channel}`;
-                }
-
+                if (match && match[1]) return match[1].trim();
+                return `Canale ${channelID}`;
             } catch (e) {
-                return `Camera_${cam.channel}`; 
+                return `Canale ${channelID}`; 
             }
         }
 
-        // --- CONTROLLO STATUS CAMERE ---
+        // --- 2. CONTROLLO STATUS CAMERE AUTOMATICO ---
         async function checkCameras() {
-            if (isClosing) return;
-            for (let cam of node.cameras) {
-                const camAuth = new AxiosDigestAuth({ username: node.user, password: node.camPass });
-                try {
-                    await camAuth.request({ 
-                        method: 'GET', 
-                        url: `${node.protocol}://${cam.ip}:${node.port}/ISAPI/System/deviceInfo`,
-                        timeout: 5000,
-                        httpsAgent: node.protocol === "https" ? httpsAgent : undefined
-                    });
-                    if (statoCamera[cam.ip] === false) {
-                        const nomeOnline = await getCameraName(cam);
-                        node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "online", nome_cliente: node.name, nome_telecamera: nomeOnline, ip_telecamera: cam.ip, channel: cam.channel, msg: "Camera ripristinata" } });
-                        statoCamera[cam.ip] = true;
-                    } else if (statoCamera[cam.ip] === undefined) {
-                        statoCamera[cam.ip] = true;
-                    }
-                } catch (e) {
-                    if (statoCamera[cam.ip] !== false) {
-                        node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "offline", nome_cliente: node.name, nome_telecamera: `Camera_${cam.channel}`, ip_telecamera: cam.ip, channel: cam.channel, msg: "Camera non raggiungibile" } });
-                        statoCamera[cam.ip] = false;
+            if (isClosing || !nvrOnline) return;
+            const nvrAuth = new AxiosDigestAuth({ username: node.user, password: node.pass });
+            try {
+                const res = await nvrAuth.request({ 
+                    method: 'GET', 
+                    url: `${node.protocol}://${node.host}:${node.port}/ISAPI/ContentMgmt/InputProxy/channels/status`,
+                    timeout: 8000,
+                    httpsAgent: node.protocol === "https" ? httpsAgent : undefined
+                });
+                
+                const xml = res.data.toString();
+                const channelBlocks = xml.match(/<InputProxyChannelStatus>[\s\S]*?<\/InputProxyChannelStatus>/g) || [];
+                
+                for (let block of channelBlocks) {
+                    const idMatch = block.match(/<id>([\s\S]*?)<\/id>/i);
+                    const onlineMatch = block.match(/<online>[ \t]*(true|false)[ \t]*<\/online>/i);
+                    
+                    if (idMatch) {
+                        const ch = idMatch[1].trim();
+                        const isOnline = onlineMatch ? onlineMatch[1].trim().toLowerCase() === "true" : false;
+
+                        if (isOnline && statoCamera[ch] === false) {
+                            const nomeOnline = await getCameraName(ch);
+                            node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "online", nome_cliente: node.name, nome_telecamera: nomeOnline, ip_telecamera: node.host, channel: ch, msg: "Camera ripristinata" } });
+                            statoCamera[ch] = true;
+                        } else if (!isOnline && statoCamera[ch] === true) {
+                            node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "offline", nome_cliente: node.name, nome_telecamera: `Camera ${ch}`, ip_telecamera: node.host, channel: ch, msg: "Camera non raggiungibile" } });
+                            statoCamera[ch] = false;
+                        } else if (statoCamera[ch] === undefined) {
+                            statoCamera[ch] = isOnline;
+                        }
                     }
                 }
+            } catch (e) {
+                node.error(`Errore nel check diagnostico InputProxy: ${e.message}`);
             }
             updateNodeStatus();
         }
@@ -106,39 +117,38 @@ module.exports = function(RED) {
             }
         }
 
-        const heartbeatInterval = setInterval(checkCameras, 30000);
+        const heartbeatInterval = setInterval(checkCameras, 15000);
 
-        // --- DOWNLOAD, SALVATAGGIO, CONVERSIONE E RIMOZIONE DOPO 2 MINUTI ---
+        // --- 3. DOWNLOAD MEDIA FLUIDO (Scorciatoia Diretta da JSON) ---
         async function downloadMedia(evento, channelID) {
-            const camera = node.cameras.find(c => c.channel == channelID);
-            if (!camera) return;
-
-            const nomeCamera = await getCameraName(camera);
-            
             const nowTime = Date.now();
-            if(!lastTriggerTime[camera.ip]){
-                lastTriggerTime[camera.ip] = 0;
-            }
-            if (nowTime - lastTriggerTime[camera.ip] < 5000) return; 
-            lastTriggerTime[camera.ip] = nowTime;
+            if (!lastTriggerTime[channelID]) lastTriggerTime[channelID] = 0;
+            if (nowTime - lastTriggerTime[channelID] < 5000) return; 
+            lastTriggerTime[channelID] = nowTime;
 
-            const camAuth = new AxiosDigestAuth({ username: node.user, password: node.camPass });
+            const nvrAuth = new AxiosDigestAuth({ username: node.user, password: node.pass });
             const referenceTime = new Date();
             const timestamp = Math.floor(referenceTime.getTime() / 1000);
-            const startTime = toHikDate(new Date(referenceTime.getTime() - (10 * 1000)));
-            const endTime = toHikDate(new Date(referenceTime.getTime() + (10 * 1000)));
 
+            node.status({fill:"yellow", shape:"dot", text:`Attesa (15s)...`});
+            await new Promise(resolve => setTimeout(resolve, 15000));
+
+            
+            const videoTrackID = (parseInt(channelID) * 100) + 1; 
+            const nomeCamera = await getCameraName(channelID);
             node.status({fill:"yellow", shape:"dot", text:`Download Cam ${channelID}...`});
-            await new Promise(resolve => setTimeout(resolve, 6000));
             
-            const baseUrl = `${node.protocol}://${camera.ip}:${node.port}/ISAPI/ContentMgmt`;
+            const inizioFinestra = new Date(referenceTime.getTime() - (20 * 1000)); 
+            const fineFinestra = new Date(referenceTime.getTime() + (20 * 1000));   
             
-            // struttura del payload per Python
+            const startFotoSearch = inizioFinestra.toISOString().split('.')[0] + "Z";
+            const endFotoSearch = fineFinestra.toISOString().split('.')[0] + "Z";
+
             let output = { 
                 tipo_messaggio: "evento",
                 nome_cliente: node.name, 
                 nome_telecamera: nomeCamera, 
-                ip_telecamera: camera.ip, 
+                ip_telecamera: node.host, 
                 tipo_evento: evento, 
                 timestamp_epoch: timestamp,
                 stato_telecamera: "ONLINE",
@@ -147,79 +157,141 @@ module.exports = function(RED) {
                 video_base64: null 
             };
 
-            
             let fileDaCancellare = [];
 
             try {
-                const tracks = [{ id: "201" }, { id: "203" }];
-                for (let t of tracks) {
-                    const searchXml = `<?xml version="1.0" encoding="utf-8"?><CMSearchDescription><searchID>LAST_EVENT</searchID><trackIDList><trackID>${t.id}</trackID></trackIDList><timeSpanList><timeSpan><startTime>${startTime}</startTime><endTime>${endTime}</endTime></timeSpan></timeSpanList><maxResults>100</maxResults><metadataList><metadataDescriptor>//recordType.meta.std-cgi.com/${evento}</metadataDescriptor></metadataList></CMSearchDescription>`;
 
-                    const resSearch = await camAuth.request({ 
-                        method: 'POST', url: `${baseUrl}/search`, data: searchXml, headers: { "Content-Type": "application/xml" } 
-                    });
-                    
-                    let xml = resSearch.data.replace(/<(\/?)\w+:/g, "<$1");
-                    const uriMatch = xml.match(/<playbackURI>([^<]+)</);
+                let searchBehaviorType = "";
+                if (evento) {
+                    searchBehaviorType = evento.toLowerCase();
+                }
 
-                    if (uriMatch) {
-                        const rawUri = uriMatch[1].replace(/&amp;/g, '&');
-                        const resDown = await camAuth.request({ 
+                // 1. 📸 SCARICAMENTO IMMAGINE E RECUPERO METADATI ORARI
+                const payloadFoto = {
+                    "EventSearchDescription": {
+                        "searchID": "C5AFEE35-B1E0-4C01-83F8-47FD77892E4A",
+                        "searchResultPosition": 0,
+                        "maxResults": 1,
+                        "timeSpanList": [{ "startTime": startFotoSearch, "endTime": endFotoSearch }],
+                        "type": "all",
+                        "channels": [parseInt(channelID)],
+                        "eventType": "behavior",
+                        "behavior": { "behaviorEventType": searchBehaviorType }
+                    }
+                };
+
+                const resFotoSearch = await nvrAuth.request({
+                    method: 'POST',
+                    url: `${node.protocol}://${node.host}:${node.port}/ISAPI/ContentMgmt/eventRecordSearch?format=json`,
+                    data: payloadFoto,
+                    headers: { "Content-Type": "application/json" },
+                    httpsAgent: node.protocol === "https" ? httpsAgent : undefined
+                });
+
+                let targetEvento = resFotoSearch.data?.EventSearchResult?.Targets?.[0];
+                let playbackURIGrezzo = null;
+
+                if (targetEvento) {
+                    // Scarichiamo la foto normalmente
+                    if (targetEvento.pictureUrl) {
+                        const urlFotoGrezzo = targetEvento.pictureUrl;
+                        const resDownFoto = await nvrAuth.request({
                             method: 'GET',
-                            url: `${baseUrl}/download`, 
-                            data: `<?xml version="1.0" encoding="UTF-8"?><downloadRequest><playbackURI>${rawUri.replace(/&/g, '&amp;')}</playbackURI></downloadRequest>`, 
-                            responseType: 'arraybuffer'
+                            url: urlFotoGrezzo,
+                            responseType: 'arraybuffer',
+                            httpsAgent: node.protocol === "https" ? httpsAgent : undefined
                         });
+                        const fullImgPath = path.join(baseStorage, `img_${timestamp}_ch${channelID}.jpg`);
+                        fs.writeFileSync(fullImgPath, Buffer.from(resDownFoto.data));
+                        output.foto_base64 = fs.readFileSync(fullImgPath, { encoding: 'base64' });
+                        fileDaCancellare.push(fullImgPath);
+                    }
 
-                        let buffer = Buffer.from(resDown.data);
-                        if (t.id === "203") {
-                            // SALVA FOTO IN LOCALE
-                            const fullImgPath = path.join(baseStorage, `img_${timestamp}.jpg`);
-                            fs.writeFileSync(fullImgPath, buffer);
-                            
-                            // La convertiamo subito in testo per il payload
-                            output.foto_base64 = fs.readFileSync(fullImgPath, { encoding: 'base64' });
-                            
-                            // Registriamo il file per la distruzione futura
-                            fileDaCancellare.push(fullImgPath);
-                        } else {
-                            // SALVA VIDEO IN LOCALE-
-                            if (buffer.slice(0, 4).toString() === 'IMKH') buffer = buffer.slice(40);
-                            const rawPath = path.join(baseStorage, `raw_${timestamp}.mp4`);
-                            const fixedPath = path.join(baseStorage, `hik_v_${channelID}_${timestamp}.mp4`);
-                            fs.writeFileSync(rawPath, buffer);
-                            
-                            // Eseguiamo ffmpeg localmente
-                            await new Promise((resolve) => {
-                                exec(`ffmpeg -y -i "${rawPath}" -c copy -movflags +faststart "${fixedPath}"`, (err) => {
-                                    if (!err && fs.existsSync(fixedPath)) {
-                                        output.video_base64 = fs.readFileSync(fixedPath, { encoding: 'base64' });
-                                        fileDaCancellare.push(fixedPath);
-                                    } else {
-                                        output.video_base64 = fs.readFileSync(rawPath, { encoding: 'base64' });
-                                    }
-                                    fileDaCancellare.push(rawPath);
-                                    resolve();
-                                });
-                            });
-                        }
+                    // 2. 🎥 GENERAZIONE DINAMICA E DIRETTA PLAYBACK URI (Niente più ricerca XML!)
+                    if (targetEvento.startTime && targetEvento.endTime) {
+                        const pulisciDataHik = (dataStr) => {
+                            let pulita = dataStr.replace(/[-:]/g, '').split('+')[0];
+                            return pulita;
+                        };
+
+                        const startClip = pulisciDataHik(targetEvento.startTime);
+                        const endClip = pulisciDataHik(targetEvento.endTime);
+
+                        playbackURIGrezzo = `rtsp://${node.host}:${node.port}/Streaming/tracks/${videoTrackID}/?starttime=${startClip}&endtime=${endClip}`;
                     }
                 }
 
-                // Spediamo il pacchetto completo verso l'HTTP Request tramite Node-RED
+                // 3. 💾 EFFETTUIAMO LA GET DI DOWNLOAD SE ABBIAMO GENERATO L'URI
+                if (playbackURIGrezzo) {
+                    const playbackURIXml = playbackURIGrezzo.replace(/&/g, '&amp;');
+
+                    const payloadDownload = `<?xml version="1.0" encoding="UTF-8"?>
+                    <downloadRequest>
+                        <playbackURI>${playbackURIXml}</playbackURI>
+                    </downloadRequest>`;
+
+                    const resDownVideo = await nvrAuth.request({
+                        method: 'GET',
+                        url: `${node.protocol}://${node.host}:${node.port}/ISAPI/ContentMgmt/download`,
+                        data: payloadDownload,
+                        headers: { "Content-Type": "application/xml" },
+                        responseType: 'stream', 
+                        insecureHTTPParser: true,
+                        httpsAgent: node.protocol === "https" ? httpsAgent : undefined
+                    });
+
+                    const rawPath = path.join(baseStorage, `raw_${timestamp}_ch${channelID}.mp4`);
+                    const fixedPath = path.join(baseStorage, `hik_v_${channelID}_${timestamp}.mp4`);
+
+                    const writer = fs.createWriteStream(rawPath);
+
+                    resDownVideo.data.pipe(writer);
+
+                    // 🌟 BLOCCO DI SICUREZZA: Aspettiamo la reale chiusura del flusso di rete dell'NVR
+                    await new Promise((resolve, reject) => {
+                        resDownVideo.data.on('end', () => {
+                            setTimeout(() => {
+                                writer.end();
+                                resolve();
+                            }, 500);
+                        });
+                        
+                        resDownVideo.data.on('error', (err) => {
+                            writer.end();
+                            reject(err);
+                        });
+                        
+                        writer.on('error', (err) => {
+                            reject(err);
+                        });
+                    });
+
+                    // Leggiamo il file finale completo per controllare la testata IMKH
+                    let videoBuffer = fs.readFileSync(rawPath);
+                    if (videoBuffer.slice(0, 4).toString() === 'IMKH') {
+                        videoBuffer = videoBuffer.slice(40);
+                        fs.writeFileSync(rawPath, videoBuffer);
+                    }
+
+                    await new Promise((resolve) => {
+                        exec(`ffmpeg -y -i "${rawPath}" -c copy -movflags +faststart "${fixedPath}"`, (err) => {
+                            if (!err && fs.existsSync(fixedPath)) {
+                                output.video_base64 = fs.readFileSync(fixedPath, { encoding: 'base64' });
+                                fileDaCancellare.push(fixedPath);
+                            } else {
+                                output.video_base64 = fs.readFileSync(rawPath, { encoding: 'base64' });
+                            }
+                            fileDaCancellare.push(rawPath);
+                            resolve();
+                        });
+                    });
+                }
+
                 if (output.foto_base64 || output.video_base64) {
                     node.send({ payload: output });
-                    
-                    // TIMER A 2 MINUTI PER LA PULIZIA DEL DISCO 
                     setTimeout(() => {
                         for (let file of fileDaCancellare) {
-                            try {
-                                if (fs.existsSync(file)) {
-                                    fs.unlinkSync(file);
-                                }
-                            } catch (err) {
-                                node.error(`Errore durante la pulizia del file temporaneo ${file}: ${err.message}`);
-                            }
+                            try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch (err) {}
                         }
                     }, 120000);
                 }
