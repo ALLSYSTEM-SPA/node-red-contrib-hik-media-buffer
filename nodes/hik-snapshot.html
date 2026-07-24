@@ -4,11 +4,11 @@
         color: '#00b4d8',
         defaults: {
             name: { value: "" },
-            host: { value: "", required: true },
-            channel: {value: "", required: true},
+            host: { value: ""},
+            channel: {value: ""},
             protocol: { value: "http" },
-            port: { value: "80", required: true },
-            user: { value: "admin", required: true },
+            port: { value: "80"},
+            user: { value: "admin"},
             pass: { value: "" },
 
         },
@@ -73,8 +73,8 @@
 
 <img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-snapshot-node.png'>
 
-The Hik Snapshot node connects to NVR and generates a live image for each camera when it receives payload = true as input.
-This node can also report if there are recordings of the day this node is triggered for each camera.
+The Hik Snapshot node connects to NVR and generates a live image for each camera when it receives "payload = true" as input.</br>
+This node can also report if there are recordings on the day this node is triggered for each camera.
 
 <img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-snapshot-configuration.png'>
 
@@ -87,7 +87,8 @@ This below is an example of msg output:</br>
 ```javascript
 msg = {
 payload: array[5], // 5 channels
-0: object, 
+0: object,
+name: "test" // Node name
 channel: 1, // Channel 1 of the NVR
 photo: buffer[18080], // Snapshot buffer
 snapOk: true, // True if it gets the snapshot, False if not
