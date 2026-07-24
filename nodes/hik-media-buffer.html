@@ -9,42 +9,12 @@
             port: { value: "80", required: true },
             user: { value: "admin", required: true },
             pass: { value: "" },
-            camPass: { value: "" },
-            cameras: { value: [] }
         },
         inputs: 0,
         outputs: 1,
         icon: "font-awesome/fa-bell",
         label: function() { return this.name || "Hik Multi Cam"; },
-        oneditprepare: function() {
-            $("#node-input-cameras-container").css('min-height','150px').editableList({
-                addItem: function(container, i, data) {
-                    var row = $('<div/>').appendTo(container);
-                    $('<input/>',{class:"node-input-camera-channel",type:"text",placeholder:"Canale (es. 1)",style:"width:30%; margin-right:5px;"}).appendTo(row).val(data.channel);
-                    $('<input/>',{class:"node-input-camera-ip",type:"text",placeholder:"IP Telecamera",style:"width:60%;"}).appendTo(row).val(data.ip);
-                },
-                removable: true,
-                sortable: true
-            });
-            if (this.cameras) {
-                this.cameras.forEach(function(cam) {
-                    $("#node-input-cameras-container").editableList('addItem', cam);
-                });
-            }
-        },
-        oneditsave: function() {
-            var cams = $("#node-input-cameras-container").editableList('items');
-            var node = this;
-            node.cameras = [];
-            cams.each(function(i) {
-                var cam = $(this);
-                var o = {
-                    channel: cam.find(".node-input-camera-channel").val(),
-                    ip: cam.find(".node-input-camera-ip").val()
-                };
-                if (o.channel && o.ip) node.cameras.push(o);
-            });
-        }
+        
     });
 </script>
 
@@ -84,42 +54,51 @@
             <option value="8008">8008</option>
         </select>
     </div>
-
-    <hr>
-    <h4>Elenco Telecamere (Download)</h4>
-    <div class="form-row node-input-cameras-container-row">
-        <ol id="node-input-cameras-container"></ol>
-    </div>
-    <div class="form-row">
-        <label for="node-input-camPass"><i class="fa fa-key"></i> Password Telecamera</label>
-        <input type="password" id="node-input-camPass" placeholder="Password comune alle telecamere">
-    </div>
 </script>
 <script type="text/markdown" data-help-name="hik-media-buffer">
 ## HIK MEDIA BUFFER NODE
 
 <img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-media-buffer-node.png'>
 
-The Hik Media Buffer node connects to NVR and outputs the image and the video of the event in case of alarm.</br>
+The Hik Download node connects to NVR and outputs the image and the video of the event in case of alarm.</br>
 This node only detects "FieldDetection" and "LineDetection" alarms but can also receive notification of a failed connection of the cameras or NVR.</br>
 
 <img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-media-buffer-configuration.png'>
 
 To configure the node you need to enter the IP, user and password of the NVR, you can also choose the protocol and port to use.</br>
-You must also enter, by pressing the "add" button, the channel and the correspective IP of the camera, finally you must enter the password of the cameras.</br>
 
 This below is an example of msg output:</br>
 
+In case of failed connection:</br>
 ```javascript
 msg = {
 payload: object,
-ip: "192.168.1.100", // IP of the camera
-channel: "2", // Channel of the camera
-event: "LineDetection", // Type of event deteced 
-videoPath: "", // Path of the video
-imageBuffer: buffer[12360], // Buffer of the image
-status: "online", // Status of the camera
+tipo_messaggio: "status" //message type
+stato_telecamera: "online" // Status of the camera
+nome_cliente: "test"  // Node name
+nome_telecamera: "Camera 01" // Camera name (OSD)
+ip_telecamera: "192.168.62.131" // IP of the camera
+channel: "1" // Channel of the camera
+msg: "Camera ripristinata" 
 _msgid: "45fd74589048966d"
 };
 ```
-</script>
+
+In case of alarm:</br>
+```javascript
+msg = {
+payload: object,
+tipo_messaggio: "evento" //message type
+nome_cliente: "test"  // Node name
+nome_telecamera: "Camera 01" // Camera name (OSD)
+ip_telecamera: "192.168.62.131" // IP of the camera
+tipo_evento: "LineDetection" // Event type
+timestamp_epoch: 1784877525
+stato_telecamera: "ONLINE" // Status of the camera
+channel: "1" // Channel of the camera
+foto_base64: "/9j/2wCEAAYEBQYFBAYGBQY.." // Img in base64
+video_base64: "AAAAHGZ0eXBpc29tAAACAG.." // Video in base64
+_msgid: "45fd74589048966d"
+};
+```
+</script>   
