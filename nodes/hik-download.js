@@ -42,6 +42,26 @@ module.exports = function(RED) {
             return [...new Set(channels)].sort((a, b) => a - b);
         }
 
+        // 🌟 FUNZIONE UNIFORMATA PER FORMATTARE LA DATA (Formato: YYYY-MM-DDTHH-MM-SS)
+        function formattaDataUnivoca(dataStr) {
+            if (!dataStr) return "";
+            // Puliamo la stringa iniziale mantenendo solo la parte data/ora base
+            let d = dataStr.replace(' ', 'T').split('.')[0].replace('Z', '');
+            
+            // Garantiamo i secondi se mancanti
+            if (d.includes('T') && d.split('T')[1].length === 5) {
+                d += ':00';
+            }
+
+            // Trasformiamo i due punti dell'ora in trattini -> YYYY-MM-DDTHH-MM-SS
+            if (d.includes('T')) {
+                let [dataPart, oraPart] = d.split('T');
+                oraPart = oraPart.replace(/:/g, '-');
+                return `${dataPart}T${oraPart}`;
+            }
+            return d;
+        }
+
         node.on('input', async function(msg) {
             if (msg.payload !== true) return;
 
@@ -62,43 +82,14 @@ module.exports = function(RED) {
                 return;
             }
 
-            // 🌟 1. FORMATTAZIONE DELLE DATE IN BASE ALLA PORTA (Bivio Logico)
-            let startTimeNVR, endTimeNVR, playbackURIGrezzo, payloadDownload;
-            
-            const isPort85 = (port.toString() === "85");
+            // 🌟 1. FORMATTAZIONE UNIVOCA DELLA DATA PER QUALSIASI MACCHINA/PORTA
+            const startTimeNVR = formattaDataUnivoca(startTimeRaw);
+            const endTimeNVR = formattaDataUnivoca(endTimeRaw);
 
-            if (isPort85) {
-                // Formato specifico DVR Porta 85: AAAA-MM-GGTHH:MM:SS (Senza Z, con trattini e due punti)
-                const formattaDataDVR = (dataStr) => {
-                    let d = dataStr.replace(' ', 'T').split('.')[0].replace('Z', '');
-                    if (d.includes('T') && d.split('T')[1].length === 5) {
-                        d += ':00';
-                    }
-                    return d;
-                };
-                startTimeNVR = formattaDataDVR(startTimeRaw);
-                endTimeNVR = formattaDataDVR(endTimeRaw);
+            // Costruzione dell'URI RTSP generico con porta
+            const playbackURIGrezzo = `rtsp://${host}:${port}/Streaming/tracks/TRACK_PLACEHOLDER/?starttime=${startTimeNVR}&endtime=${endTimeNVR}`;
 
-                // RTSP con porta e XML senza namespace
-                const trackId = targetChannels[0] + "01"; // Default temporaneo per comporre l'URI prima del ciclo
-                playbackURIGrezzo = `rtsp://${host}:${port}/Streaming/tracks/TRACK_PLACEHOLDER/?starttime=${startTimeNVR}&endtime=${endTimeNVR}`;
-            } else {
-                // Formato classico NVR (Senza trattini e senza due punti)
-                const pulisciDataNVR = (dataStr) => {
-                    let d = dataStr.replace(' ', 'T').replace(/[-:]/g, '').split('.')[0].replace('Z', '');
-                    if (d.includes('T') && d.split('T')[1].length === 4) {
-                        d += '00';
-                    }
-                    return d;
-                };
-                startTimeNVR = pulisciDataNVR(startTimeRaw);
-                endTimeNVR = pulisciDataNVR(endTimeRaw);
-
-                // RTSP senza porta
-                playbackURIGrezzo = `rtsp://${host}/Streaming/tracks/TRACK_PLACEHOLDER/?starttime=${startTimeNVR}&endtime=${endTimeNVR}`;
-            }
-
-            // Creazione cartella di salvataggio C:\download\YYYY-MM-DD
+            // Creazione cartella di salvataggio
             const dataGiorno = startTimeRaw.substring(0, 10).replace(/\//g, '-'); 
             const baseDir = process.platform === "win32" ? "C:\\download" : "/home/allsystem/download";
             const targetDir = path.join(baseDir, dataGiorno);
@@ -126,22 +117,14 @@ module.exports = function(RED) {
                     text: `Download Ch ${ch} (${index + 1}/${targetChannels.length})...` 
                 });
 
-                // Sostituiamo il placeholder con la traccia corrente del ciclo
                 const uriCorrente = playbackURIGrezzo.replace('TRACK_PLACEHOLDER', trackId);
                 const playbackURIXml = uriCorrente.replace(/&/g, '&amp;');
 
-                // Costruiamo l'XML a seconda del tipo di macchina
-                if (isPort85) {
-                    payloadDownload = `<?xml version="1.0" encoding="UTF-8"?>
+                // 🌟 PAYLOAD XML UNIVOCO SENZA DISTINZIONE DI PORTA
+                const payloadDownload = `<?xml version="1.0" encoding="UTF-8"?>
                     <downloadRequest>
                         <playbackURI>${playbackURIXml}</playbackURI>
                     </downloadRequest>`;
-                } else {
-                    payloadDownload = `<?xml version="1.0" encoding="UTF-8"?>
-                    <downloadRequest version="1.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
-                        <playbackURI>${playbackURIXml}</playbackURI>
-                    </downloadRequest>`;
-                }
 
                 try {
                     const response = await digest.request({
@@ -158,13 +141,12 @@ module.exports = function(RED) {
                     if (response.status === 200 || response.status === 206) {
                         const nomeCondominio = (msg.nvr_name || node.name || 'NVR').replace(/[^a-zA-Z0-9]/g, '_');
                         const oraInizio = startTimeNVR.split('T')[1] || startTimeNVR;
-                        const finalFileName = `${nomeCondominio}_Cam${ch}_${oraInizio.replace(/:/g, '')}.mp4`;
+                        const finalFileName = `${nomeCondominio}_Cam${ch}_${oraInizio.replace(/-/g, '')}.mp4`;
                         const finalFilePath = path.join(targetDir, finalFileName);
 
                         const writer = fs.createWriteStream(finalFilePath);
                         const videoChunks = [];
 
-                        // Ascoltiamo i dati in arrivo dallo stream per salvarli anche in memoria
                         response.data.on('data', (chunk) => {
                             videoChunks.push(chunk);
                         });
@@ -194,7 +176,18 @@ module.exports = function(RED) {
                     }
 
                 } catch (err) {
+                    let errText = err.message;
+                    if (err.response && err.response.status === 401) {
+                        errText = "Password o Utente NVR errati (401 Unauthorized)";
+                    }
+
+                    node.status({ fill: "red", shape: "dot", text: `Errore Cam ${ch}` });
                     node.error(`Errore download video Cam ${ch}: ${err.message}`);
+
+                    let outErrMsg = RED.util.cloneMessage(msg);
+                    outErrMsg.payload = null;
+                    outErrMsg.errorDetail = errText;
+                    node.send(outErrMsg)
                 }
 
                 if (targetChannels.length > 1 && index < targetChannels.length - 1) {
@@ -202,7 +195,7 @@ module.exports = function(RED) {
                 }
             }
 
-            node.status({ fill: "green", shape: "dot", text: `Salvati in C:\\download\\${dataGiorno}` });
+            node.status({ fill: "green", shape: "dot", text: `Salvati in ${targetDir}` });
         });
     }
     RED.nodes.registerType("hik-download", HikDownloadNode);
