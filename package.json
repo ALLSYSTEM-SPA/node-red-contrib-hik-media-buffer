@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-hik-media-buffer",
-  "version": "1.2.10",
+  "version": "1.2.14",
   "description": "Ottiene buffer video e immagine da camere Hikvision via ISAPI",
   "keywords": [
     "node-red",
