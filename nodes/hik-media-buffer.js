@@ -8,7 +8,7 @@ const { exec } = require('child_process');
 
 module.exports = function(RED) {
     function HikMediaBufferNode(config) {
-        RED.nodes.createNode(this, config);
+        RED.nodes.createNode(this, config); 
         const node = this;
         
         node.name = config.name || "TEST";
@@ -274,7 +274,7 @@ module.exports = function(RED) {
                     }
 
                     await new Promise((resolve) => {
-                        exec(`ffmpeg -y -i "${rawPath}" -c copy -movflags +faststart "${fixedPath}"`, (err) => {
+                        exec(`ffmpeg -y -i "${rawPath}" -c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p -c:a aac -movflags +faststart "${fixedPath}"`, (err) => {
                             if (!err && fs.existsSync(fixedPath)) {
                                 output.video_base64 = fs.readFileSync(fixedPath, { encoding: 'base64' });
                                 fileDaCancellare.push(fixedPath);
