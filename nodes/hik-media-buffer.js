@@ -47,7 +47,7 @@ module.exports = function(RED) {
         }
 
         // --- 1. PRENDE IL NOME REALE DELLA TELECAMERA ---
-        async function getCameraName(channelID) {
+        async function getCameraInfo(channelID) {
             const nvrAuth = new AxiosDigestAuth({ username: node.user, password: node.pass });
             try {
                 const res = await nvrAuth.request({
@@ -57,11 +57,16 @@ module.exports = function(RED) {
                     httpsAgent: node.protocol === "https" ? httpsAgent : undefined
                 });
                 const data = res.data.toString();
-                const match = data.match(/<name>([^<]+)<\/name>/i);
-                if (match && match[1]) return match[1].trim();
-                return `Canale ${channelID}`;
+
+                const matchName = data.match(/<name>([^<]+)<\/name>/i);
+                const name = (matchName && matchName[1]) ? matchName[1].trim() : `Canale ${channelID}`;
+
+                const matchIp = data.match(/<ipAddress>([^<]+)<\/ipAddress>/i);
+                const ip_camera = (matchIp && matchIp[1]) ? matchIp[1].trim() : node.host;
+
+                return { name, ip_camera};
             } catch (e) {
-                return `Canale ${channelID}`; 
+                return { nome: `Canale ${channelID}`, ipCam: node.host }; 
             }
         }
 
@@ -89,8 +94,8 @@ module.exports = function(RED) {
                         const isOnline = onlineMatch ? onlineMatch[1].trim().toLowerCase() === "true" : false;
 
                         if (isOnline && statoCamera[ch] === false) {
-                            const nomeOnline = await getCameraName(ch);
-                            node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "online", nome_cliente: node.name, nome_telecamera: nomeOnline, ip_telecamera: node.host, channel: ch, msg: "Camera ripristinata" } });
+                            const {name: nomeOnline, ip_camera: ip_telecamera} = await getCameraInfo(ch);
+                            node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "online", nome_cliente: node.name, nome_telecamera: nomeOnline, ip_telecamera: ip_telecamera, channel: ch, msg: "Camera ripristinata" } });
                             statoCamera[ch] = true;
                         } else if (!isOnline && statoCamera[ch] === true) {
                             node.send({ payload: { tipo_messaggio: "status", stato_telecamera: "offline", nome_cliente: node.name, nome_telecamera: `Camera ${ch}`, ip_telecamera: node.host, channel: ch, msg: "Camera non raggiungibile" } });
@@ -135,7 +140,7 @@ module.exports = function(RED) {
 
             
             const videoTrackID = (parseInt(channelID) * 100) + 1; 
-            const nomeCamera = await getCameraName(channelID);
+            const {name: nomeCamera, ip_camera: ip_telecamera} = await getCameraInfo(channelID);
             node.status({fill:"yellow", shape:"dot", text:`Download Cam ${channelID}...`});
             
             const inizioFinestra = new Date(referenceTime.getTime() - (20 * 1000)); 
@@ -148,7 +153,7 @@ module.exports = function(RED) {
                 tipo_messaggio: "evento",
                 nome_cliente: node.name, 
                 nome_telecamera: nomeCamera, 
-                ip_telecamera: node.host, 
+                ip_telecamera: ip_telecamera, 
                 tipo_evento: evento, 
                 timestamp_epoch: timestamp,
                 stato_telecamera: "ONLINE",
@@ -174,7 +179,7 @@ module.exports = function(RED) {
                         "maxResults": 1,
                         "timeSpanList": [{ "startTime": startFotoSearch, "endTime": endFotoSearch }],
                         "type": "all",
-                        "channels": [parseInt(channelID)],
+                        "channels": [parseInt(channelID)], 
                         "eventType": "behavior",
                         "behavior": { "behaviorEventType": searchBehaviorType }
                     }
