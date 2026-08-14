@@ -9,7 +9,7 @@ This node only detects **_"FieldDetection"_** and **_"LineDetection"_** alarms b
 
 <img src='https://github.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/blob/main/img/hik-media-buffer-configuration.png'>
 
-To configure the node you need to enter the **_IP, user and password of the NVR_**, you can also choose the **_protocol_** and **_port_** to use.</br>
+To configure the node you need to enter the **_IP, user and password of the NVR_**, you can also choose the **_client name_**, **_protocol_** and **_port_** to use.</br>
 
 This below is an example of msg output:</br>
 
