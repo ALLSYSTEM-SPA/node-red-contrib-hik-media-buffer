@@ -58,8 +58,7 @@ This node can also report, for each camera, if there are recordings of the day t
 <img src='https://github.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/blob/main/img/hik-snapshot-configuration.png'>
 
 To configure the node you need to enter the **_IP, user and password of the NVR_**, you can also choose the **_protocol_** and **_port_** to use.</br>
-You must also enter the number of the channels you want to get the snapshot of.</br>
-If you enter "5", you will get the output of the first 5 channels on the NVR, so if you have 5 cameras on the NVR but one of them is not on the first five channels you won't get the snapshot of that camera.</br>
+You must also enter the channels you want to get the snapshot of: if you enter "1", you will get the snapshot of the first channel of the NVR; if you enter "1,3", you will get the snapshot of channels 1 and 3 of the NVR; if you enter "1-3", you will get the snapshot from channel 1 to channel 3 of the NVR </br>
 
 This below is an example of msg output:</br>
 
@@ -92,8 +91,8 @@ The Hik Download node connects to NVR and outputs the playback video when it rec
 <img src='https://raw.githubusercontent.com/ALLSYSTEM-SPA/node-red-contrib-hik-media-buffer/main/img/hik-download-configuration.png'>
 
 To configure the node you need to enter the IP, user and password of the NVR, you can also choose the protocol and port to use.</br>
-You must also enter the start time and the end time and the number of the channels you want to get the playback of.</br>
-If you enter "1", you will get the playback of the first channel on the NVR, if you enter "1,3", you will get the playback of channel 1 and 3 on the NVR, if you enter "1-3", you will get the playback from channel 1 to channel 3 on the NVR</br>
+You must also enter the starttime, the endtime and the channels you want to get the playback of.</br>
+If you enter "1", you will get the playback of the first channel of the NVR; if you enter "1,3", you will get the playback of channels 1 and 3 of the NVR; if you enter "1-3", you will get the playback from channel 1 to channel 3 of the NVR</br>
 
 This below is an example of msg output:</br>
 
