@@ -170,11 +170,12 @@ module.exports = function(RED) {
                 if (evento) {
                     searchBehaviorType = evento.toLowerCase();
                 }
+                const searchID = `${Math.floor(Math.random() * 100000)}`;
 
                 // 1. 📸 SCARICAMENTO IMMAGINE E RECUPERO METADATI ORARI
                 const payloadFoto = {
                     "EventSearchDescription": {
-                        "searchID": "C5AFEE35-B1E0-4C01-83F8-47FD77892E4A",
+                        "searchID": searchID,
                         "searchResultPosition": 0,
                         "maxResults": 1,
                         "timeSpanList": [{ "startTime": startFotoSearch, "endTime": endFotoSearch }],
