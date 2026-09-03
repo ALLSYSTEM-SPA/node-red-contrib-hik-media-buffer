@@ -143,8 +143,8 @@ module.exports = function(RED) {
             const {name: nomeCamera, ip_camera: ip_telecamera} = await getCameraInfo(channelID);
             node.status({fill:"yellow", shape:"dot", text:`Download Cam ${channelID}...`});
             
-            const inizioFinestra = new Date(referenceTime.getTime() - (20 * 1000)); 
-            const fineFinestra = new Date(referenceTime.getTime() + (20 * 1000));   
+            const inizioFinestra = new Date(referenceTime.getTime() - (5 * 1000)); 
+            const fineFinestra = new Date(referenceTime.getTime() + (5 * 1000));   
             
             const startFotoSearch = inizioFinestra.toISOString().split('.')[0] + "Z";
             const endFotoSearch = fineFinestra.toISOString().split('.')[0] + "Z";
